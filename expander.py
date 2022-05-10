@@ -1,8 +1,13 @@
+from asyncio.windows_events import NULL
 import os
 from threading import Thread
 import pyperclip as clip
 import pynput.keyboard as keyboard
 import pynput.mouse as mouse
+import tkinter
+from PIL import Image, ImageTk
+
+
 
 root = ""
 buff = ""
@@ -158,6 +163,97 @@ thread_keyboard.start()
 thread_mouse.start()
 
 print("start listening.")
+
+
+#---------------------------------
+
+x, y = 0, 0
+w, h = 100, 100
+
+def load_picture(file_path):
+    global w, h
+    if not file_path.endswith(('png', 'PNG', 'jpg', 'JPG')):
+        print('File ingored: ' + file_path)
+        return NULL
+    pic = Image.open(file_path)
+    #size = max(pic.width, pic.height)
+    #pic = pic.crop((0, 0, size, size))
+    pic = pic.resize((w, h), Image.ANTIALIAS)
+    return pic        
+
+def load_pictures(dic_path):
+    file_list = os.listdir(dic_path)
+    pictures = []
+    for file_name in file_list:
+        pic = load_picture(dic_path + file_name)
+        if pic != NULL:
+            pictures.append(pic)
+    print(len(pictures), 'pictures loaded.')
+    return pictures
+
+def check_exit():
+    global exit
+    if exit == True:
+        ball.quit()
+    ball.after(1000, check_exit)
+
+def move(event):
+    global x,y,w,h
+    new_x = (event.x-x)+ball.winfo_x()
+    new_y = (event.y-y)+ball.winfo_y()
+    s = f"{w}x{h}+" + str(new_x)+"+" + str(new_y)
+    ball.geometry(s)
+    #print("s = ",s)
+    #print(root.winfo_x(),root.winfo_y())
+    #print(event.x,event.y)
+
+def button_1(event):
+    global x,y
+    x,y = event.x,event.y
+    #print("event.x, event.y = ",event.x,event.y)
+
+def button_2(event):
+    global pic_cnt, cur_pic, pic, pictures
+    if pic_cnt > 0:
+        cur_pic = (cur_pic + 1) % pic_cnt
+        pic = ImageTk.PhotoImage(pictures[cur_pic])        
+        canvas.create_image((w//2, h//2), image = pic)
+
+ball = tkinter.Tk()
+screen_width = ball.winfo_screenwidth()
+screen_height = ball.winfo_screenheight()
+ball.geometry(f"{w}x{h}+{screen_width//2}+{screen_height//2}")
+ball.overrideredirect(True)
+#ball.attributes("-alpha", 0.4)
+ball.attributes("-topmost", True)
+ball.wm_attributes("-transparentcolor", "snow")
+
+
+canvas = tkinter.Canvas(ball)
+canvas.configure(width = w)
+canvas.configure(height = h)
+canvas.configure(bg = "snow")
+canvas.configure(highlightthickness = 0)
+
+pictures = load_pictures("pictures/")
+pic_cnt = len(pictures)
+cur_pic = 0
+if(pic_cnt > 0):
+    pic = ImageTk.PhotoImage(pictures[cur_pic])
+canvas.create_image((w//2, h//2), image = pic)
+
+canvas.pack()
+
+canvas.bind("<B1-Motion>", move)
+canvas.bind("<Button-1>", button_1)
+canvas.bind("<Button-3>", button_2)
+
+ball.after(1000, check_exit)
+ball.mainloop()
+
+
+
+
 
 
 

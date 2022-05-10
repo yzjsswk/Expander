@@ -1,0 +1,6 @@
+reads
+inline void reads(string& s){
+    s = ""; char c = 0;
+    while(!isdigit(c)) c = getchar();
+    while(isdigit(c)) s += c, c = getchar();
+}

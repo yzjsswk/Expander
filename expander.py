@@ -1,15 +1,15 @@
-from pynput.keyboard import Key, Controller as KB
-from pynput import *
-from threading import Thread
-import pyperclip as clip 
 import os
-
+from threading import Thread
+import pyperclip as clip
+import pynput.keyboard as keyboard
+import pynput.mouse as mouse
 
 root = ""
 buff = ""
 expand = {}
 txt_path_list = []
 exit = False
+version = "2022/5/10"
 
 def load_commond(file_content):
     global expand
@@ -28,6 +28,7 @@ def load_commond(file_content):
 
 def get_txt_path(dic_path):
     global txt_path_list
+    txt_path_list.clear()
     for name in os.listdir(dic_path):
         full_path = os.path.join(dic_path, name)
         if os.path.isdir(full_path):
@@ -37,14 +38,15 @@ def get_txt_path(dic_path):
 
 
 def read_commonds():
-    global txt_path_list
+    global txt_path_list, expand, version
+    expand.clear()
+    expand['version'] = version
     for path in txt_path_list:
         with open(path) as f:
             load_commond(f.readlines())
     
-
 def key_press_event(key):
-    global root, buff, expand, txt_path_list
+    global root, buff, expand, txt_path_list, exit
     if type(key) == keyboard._win32.KeyCode:
         val = key.char
         if val == None:
@@ -59,18 +61,16 @@ def key_press_event(key):
         if val == '@' or val == '_':
             buff += val
     else:
-        if key == Key.space:
+        if key == keyboard.Key.space:
             cnt = len(buff)
             if cnt > 3 and buff[0] == '@' and buff[1] == '@' and buff[2] == '@':
-                kb = KB()
+                kb = keyboard.Controller()
                 for _ in range(cnt+1):
-                    kb.press(Key.backspace)
-                    kb.release(Key.backspace)
+                    kb.press(keyboard.Key.backspace)
+                    kb.release(keyboard.Key.backspace)
                 package_name = buff[3:]
                 path = root + '\commands' + '\\' + package_name
                 if os.path.exists(path):
-                    txt_path_list.clear()
-                    expand.clear()
                     get_txt_path(path)
                     read_commonds()
                     print(f"namespace change to '{package_name}'.")
@@ -78,10 +78,10 @@ def key_press_event(key):
                     print(f"path not exists: {path}.")
                 buff = ""
             elif cnt > 2 and buff[0] == '@' and buff[1] == '@':
-                kb = KB()
+                kb = keyboard.Controller()
                 for _ in range(cnt+1):
-                    kb.press(Key.backspace)
-                    kb.release(Key.backspace)
+                    kb.press(keyboard.Key.backspace)
+                    kb.release(keyboard.Key.backspace)
                 tag = buff[2:].split('_')
                 op = tag[0]
                 paras = tag[1:]
@@ -90,52 +90,66 @@ def key_press_event(key):
                 if op in expand:
                     #ori = clip.paste()
                     content = expand[op]
+                    para_id = 0
                     for para in paras:
-                        content = content.replace('{}', para, 1)
+                        content = content.replace('{%d}'%para_id, para)
+                        para_id = para_id + 1
                     clip.copy(content)
-                    kb.press(Key.ctrl)
+                    kb.press(keyboard.Key.ctrl)
                     kb.press('v')
                     kb.release('v')
-                    kb.release(Key.ctrl)
-                    kb.press(Key.ctrl)
-                    kb.release(Key.ctrl)
+                    kb.release(keyboard.Key.ctrl)
+                    kb.press(keyboard.Key.ctrl)
+                    kb.release(keyboard.Key.ctrl)
                     #clip.copy(ori)
+                elif op == 'exit':
+                    print("exit.")
+                    exit = True
+                    ms = mouse.Controller()
+                    ms.move(0, 1)
+                    return False
                 else:
                     print(f"commond '{op}' not found.")
                     buff = ""
             else:
                 buff = ""
-        elif key == Key.shift_l or key == Key.shift_r:
+        elif key == keyboard.Key.shift_l or key == keyboard.Key.shift_r:
             pass
-        elif len(buff) > 0 and key == Key.backspace:
+        elif len(buff) > 0 and key == keyboard.Key.backspace:
             buff = buff[:-1]
         else:
             buff = ""
     #print(buff)
 
+'''
 def key_release_event(key):
     global exit
-    if key == Key.esc or exit == True:
-        exit = True
+    if exit == True:
         return False
+'''
 
 def mouse_click_event(x, y, button, pressed):
+    global buff
     buff = ""
+
+def mouse_move_event(x, y):
+    global exit
     if exit == True:
         return False
 
 def keyboard_listener():
-    with keyboard.Listener(on_press = key_press_event, on_release = key_release_event) as listener:
+    with keyboard.Listener(on_press = key_press_event) as listener:
         listener.join()   
 
 def mouse_listener():
-    with mouse.Listener(on_click = mouse_click_event) as listener:
+    with mouse.Listener(on_click = mouse_click_event, on_move = mouse_move_event) as listener:
         listener.join()
 
 
 root = os.getcwd()
 print(f"当前目录: {root}")
 
+expand['version'] = version
 
 thread_keyboard = Thread(target = keyboard_listener)
 thread_mouse = Thread(target = mouse_listener)

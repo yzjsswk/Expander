@@ -1,2 +1,2 @@
 mst
-memset({}, {}, sizeof {})
+memset({0}, {1}, sizeof {0})

@@ -1,0 +1,3 @@
+install
+pyinstaller -Fw {0}.py
+## -F one exe; -w no console; {0}: filename(go to there)

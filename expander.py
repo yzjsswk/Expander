@@ -1,4 +1,3 @@
-from asyncio.windows_events import NULL
 import os
 from threading import Thread
 import pyperclip as clip
@@ -8,7 +7,6 @@ import tkinter
 from PIL import Image, ImageTk
 
 
-
 root = ""
 buff = ""
 expand = {}
@@ -16,7 +14,7 @@ txt_path_list = []
 exit = False
 version = "2022/5/10"
 
-def load_commond(file_content):
+def load_command(file_content):
     global expand
     op = ""
     content = """"""
@@ -33,7 +31,6 @@ def load_commond(file_content):
 
 def get_txt_path(dic_path):
     global txt_path_list
-    txt_path_list.clear()
     for name in os.listdir(dic_path):
         full_path = os.path.join(dic_path, name)
         if os.path.isdir(full_path):
@@ -42,14 +39,15 @@ def get_txt_path(dic_path):
             txt_path_list.append(full_path)
 
 
-def read_commonds():
+def read_commands():
     global txt_path_list, expand, version
     expand.clear()
     expand['version'] = version
     for path in txt_path_list:
         with open(path) as f:
-            load_commond(f.readlines())
-    
+            load_command(f.readlines())
+    print("read {} commands.".format(len(expand)-1))
+
 def key_press_event(key):
     global root, buff, expand, txt_path_list, exit
     if type(key) == keyboard._win32.KeyCode:
@@ -76,8 +74,9 @@ def key_press_event(key):
                 package_name = buff[3:]
                 path = root + '\commands' + '\\' + package_name
                 if os.path.exists(path):
+                    txt_path_list.clear()
                     get_txt_path(path)
-                    read_commonds()
+                    read_commands()
                     print(f"namespace change to '{package_name}'.")
                 else:
                     print(f"path not exists: {path}.")
@@ -113,8 +112,12 @@ def key_press_event(key):
                     ms = mouse.Controller()
                     ms.move(0, 1)
                     return False
+                elif op == 'hide':
+                    ball.withdraw()
+                elif op == 'show':
+                    ball.deiconify()
                 else:
-                    print(f"commond '{op}' not found.")
+                    print(f"command '{op}' not found.")
                     buff = ""
             else:
                 buff = ""
@@ -168,17 +171,19 @@ print("start listening.")
 #---------------------------------
 
 x, y = 0, 0
-w, h = 100, 100
+w, h = 200, 200
 
 def load_picture(file_path):
     global w, h
-    if not file_path.endswith(('png', 'PNG', 'jpg', 'JPG')):
+    if not file_path.endswith(('png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG')):
         print('File ingored: ' + file_path)
-        return NULL
+        return 0
     pic = Image.open(file_path)
-    #size = max(pic.width, pic.height)
+    pw = pic.width
+    ph = pic.height
+    k = w / max(pw, ph)
     #pic = pic.crop((0, 0, size, size))
-    pic = pic.resize((w, h), Image.ANTIALIAS)
+    pic = pic.resize((int(pw*k), int(ph*k)), Image.BICUBIC)
     return pic        
 
 def load_pictures(dic_path):
@@ -186,7 +191,7 @@ def load_pictures(dic_path):
     pictures = []
     for file_name in file_list:
         pic = load_picture(dic_path + file_name)
-        if pic != NULL:
+        if pic != 0:
             pictures.append(pic)
     print(len(pictures), 'pictures loaded.')
     return pictures
@@ -250,10 +255,4 @@ canvas.bind("<Button-3>", button_2)
 
 ball.after(1000, check_exit)
 ball.mainloop()
-
-
-
-
-
-
 

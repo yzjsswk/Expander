@@ -1,3 +1,5 @@
 install
 pyinstaller -Fw {0}.py
-## -F one exe; -w no console; {0}: filename(go to there)
+## -F 打包成一个exe文件
+## -w 不显示控制台 
+## {0}: 文件名(控制台路径要切换过去)

@@ -1,3 +1,0 @@
-pipup
-pip install --upgrade {0}
-## {0}: 要升级的包名

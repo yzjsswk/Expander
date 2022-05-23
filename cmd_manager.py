@@ -1,106 +1,140 @@
-import os
 import tkinter
-from PIL import Image, ImageTk
-
-
-
-class command:
-    def __init__(self, name, note, body):
-        self.name = name
-        self.note = note
-        self.body = body
+from tkinter import END, ttk
+import dao
+import command
 
 class cmd_manager:
-    def __init__(self, cmd_path):
-        self.work_path = os.getcwd()
-        if os.path.isabs(cmd_path):
-            self.cmd_path = cmd_path
-        else:
-            self.cmd_path = os.path.join(self.work_path, cmd_path)
-        if not os.path.exists(self.cmd_path):
-            os.mkdir(self.cmd_path)
-            print('command dir made.')
-        self.group_list = []
-        for name in os.listdir(self.cmd_path):
-            full_path = os.path.join(self.cmd_path, name)
-            if os.path.isdir(full_path):
-                self.group_list.append(name)
-        self.cur_group = "null"
-        self.div_list = []
-        self.cmd = []
-        self.cmd_map = {}
-        self.div = {}
+    def __init__(self, dao: dao.dao_code, cur_group: str):
+        self.dao = dao
+        self.cur_group = cur_group
 
-    def load_cmd(self, file_content):
-        op = ""
-        note = """"""
-        body = """"""
-        flag = True
-        for row in file_content:
-            if len(row) > 1 and row[0] == '#' and row[1] == '#':
-                note += row[2:].lstrip()
-                continue
-            if flag:
-                op = row.strip()
-                flag = False
-            else:
-                body += row
-        return command(op, note, body)
+        self.root = tkinter.Tk()
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
+        self.w = 800
+        self.h = 600
+        self.root.maxsize(width=self.w, height=self.h)
+        self.root.minsize(width=self.w, height=self.h)
+        self.root.geometry(f"{self.w}x{self.h}+{(self.screen_width-self.w)//2}+{(self.screen_height-self.h)//2}")
+        self.root.title(f"Commands In Group '{cur_group}'")
+        self.tv = ttk.Treeview (
+            self.root,
+            columns = ("help"),
+            #show = 'headings',
+            height = 26
+        )
+        self.tv.column("#0", width=100, anchor='center')
+        self.tv.column("help", width=670, anchor='w')
+        self.tv.heading("#0", text="命令")
+        self.tv.heading("help", text="说明")
+        self.tv.pack(pady=15)
+        self.tv.bind('<Double-1>', self.show)
+        self.refresh()
+        self.root.mainloop()
+
+    def refresh(self):
+        for row in self.tv.get_children():
+            self.tv.delete(row)
+        
+        self.cmds = self.dao.get_cmds_of_group(self.cur_group)
+        self.types = self.dao.get_types_of_group(self.cur_group)
+        self.type_to_tvID = {}
+        self.tvID_to_type = {}
+        for type in self.types:
+            id = self.tv.insert('', 'end', text=type, open=True)
+            self.type_to_tvID[type] = id
+            self.tvID_to_type[id] = type
+        self.tvID_to_cmdIndex = {}
+        for i, cmd in enumerate(self.cmds):  
+            id = self.tv.insert(self.type_to_tvID[cmd.type], 'end', text=cmd.name, values=(cmd.get_rows_of_help()[0],))
+            self.tvID_to_cmdIndex[id] = i
+
     
-    def load_group(self, group_name):
-        if not group_name in self.group_list:
-            print(f'group {group_name} not exists.')
-            return
-        self.div_list.clear()
-        self.cmd.clear()
-        self.cmd_map.clear()
-        txt_list = []
-        group_path = os.path.join(self.cmd_path, group_name)
-        for div_name in os.listdir(group_path):
-            div_path = os.path.join(group_path, div_name)
-            if os.path.isdir(div_path):
-                self.div_list.append(div_name)
-                for cmd_name in os.listdir(div_path):
-                    cmd_path = os.path.join(div_path, cmd_name)
-                    if os.path.isfile(cmd_path) and cmd_path.endswith(('.txt')):
-                        txt_list.append(cmd_path)
-                        self.div[cmd_name] = div_name
-            else:
-                if os.path.isfile(div_path) and div_path.endswith(('.txt')):
-                    txt_list.append(div_path)
-                    self.div[div_name] = '未分类'
-        for txt_path in txt_list:
-            with open(txt_path, encoding = 'utf-8') as cmd_file:
-                cmd = self.load_cmd(cmd_file.readlines())
-                self.cmd.append(cmd)
-                self.cmd_map[cmd.name] = len(self.cmd) - 1
-        self.cur_group = group_name
-        print(f'read {len(self.cmd)} commands.')
-        print(f"group change to '{group_name}'.")
+    def selected_thing(self, selection):
+        if len(selection) > 0:
+            selection = selection[0]
+        if selection in self.tvID_to_type:
+            return "type", selection
+        if selection in self.tvID_to_cmdIndex:
+            return "cmd", selection
+        return "nothing", selection
 
-    def cmd_call(self, origin_cmd: str):
-        parts = origin_cmd.split(':')
-        op = parts[0]
-        if len(parts) > 1:
-            args = parts[1].split(',')
+    def show(self, event):
+        what_is_selected, selected_tvid = self.selected_thing(self.tv.selection())
+        if what_is_selected == "cmd":
+            selected_cmd = self.cmds[self.tvID_to_cmdIndex[selected_tvid]]
         else:
-            args = []
-        if op == 'help':
-            return self.cmd_note(args[0])
-        if not op in self.cmd_map:
-            return f"command '{op}' not found."
-        body = self.cmd[self.cmd_map[op]].body
-        arg_id = 0
-        for arg in args:
-            body = body.replace('{%d}'%arg_id, arg)
-            arg_id = arg_id + 1
-        return body
+            selected_cmd = command.command()
 
-    def cmd_note(self, cmd_name):
-        if not cmd_name in self.cmd_map:
-            return f"command '{cmd_name}' not found."
-        return self.cmd[self.cmd_map[cmd_name]].note
+        tl = tkinter.Toplevel(self.root)
+        w, h = 600, 700
+        tl.maxsize(width=w, height=h)
+        tl.minsize(width=w, height=h)
+        tl.geometry(f"{w}x{h}+{(self.screen_width-w)//2}+{(self.screen_height-h)//2}")
+        tl.title("Edit")
 
-class cmd_view:
-    def __init__(self, cmd, div):
-        pass
+        text_name = tkinter.Entry(tl)
+        text_name.place(x=70, y=20)
+        text_name.insert(0, selected_cmd.name)
+        label_name = tkinter.Label(tl, text="命令: ")
+        label_name.place(x=30, y=20)
+
+        text_type = tkinter.Entry(tl)
+        text_type.place(x=340, y=20)
+        text_type.insert(0, selected_cmd.type)
+        label_type = tkinter.Label(tl, text="分类: ")
+        label_type.place(x=300, y=20)
+
+        text_help = tkinter.Text(tl, width=75, height=15)
+        text_help.place(x=35, y=80)
+        text_help.insert(0.0, selected_cmd.help)
+        label_help = tkinter.Label(tl, text="说明: ")
+        label_help.place(x=30, y=50)
+
+        text_body = tkinter.Text(tl, width=75, height=25)
+        text_body.place(x=35, y=320)
+        text_body.insert(0.0, selected_cmd.body)
+        label_body = tkinter.Label(tl, text="展开体: ")
+        label_body.place(x=30, y=290)
+
+        def clear():
+            #text_name.delete(0, END)
+            #text_type.delete(0, END)
+            text_help.delete(0.0, END)
+            text_body.delete(0.0, END)
+        button_clear = tkinter.Button(tl, text="清空内容", command=clear)
+        button_clear.place(x=35, y=660)
+
+        def delete():
+            name = text_name.get().strip()
+            if self.dao.is_exists(name, self.cur_group):
+                self.dao.delete_one_row(name, self.cur_group)
+                self.dao.commit()
+                tl.destroy()
+                self.refresh()
+            else:
+                print('error')
+
+        def modify():
+            name = text_name.get().strip()
+            type = text_type.get().strip()
+            help = text_help.get(0.0, END)
+            body = text_body.get(0.0, END)
+            if self.dao.is_exists(name, self.cur_group):
+                self.dao.delete_one_row(name, self.cur_group)
+            self.dao.insert_one_row(name, self.cur_group, type, body, help, "")
+            self.dao.commit()
+            tl.destroy()
+            self.refresh()
+
+        button_del = tkinter.Button(tl, text="删除命令", command=delete)
+        button_del.place(x=515, y=660)
+
+        button_mod = tkinter.Button(tl, text="提交", command=modify)
+        button_mod.place(x=460, y=660) 
+
+
+        tl.mainloop()
+
+
+

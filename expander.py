@@ -5,6 +5,7 @@ import pynput.mouse as mouse
 from doll import * 
 from cmd_manager import *
 import dao
+import os
 
 buff = ""
 group = ""
@@ -143,7 +144,10 @@ def check_exit():
 
 #-----main------
 
-dc = dao.dao_code('yzjsswk.db')
+with open("config.txt") as f:
+    db_path = f.read()
+
+dc = dao.dao_code(db_path)
 
 kc = keyboard.Controller()
 mc = mouse.Controller()
@@ -159,4 +163,5 @@ print("start listening.")
 win_doll = doll(200, 200, 'pictures/')
 win_doll.root.after(1000, check_exit)
 win_doll.root.mainloop()
+
 

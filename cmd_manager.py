@@ -23,8 +23,8 @@ class cmd_manager:
             #show = 'headings',
             height = 26
         )
-        self.tv.column("#0", width=100, anchor='center')
-        self.tv.column("help", width=670, anchor='w')
+        self.tv.column("#0", width=120, anchor='center')
+        self.tv.column("help", width=650, anchor='w')
         self.tv.heading("#0", text="命令")
         self.tv.heading("help", text="说明")
         self.tv.pack(pady=15)

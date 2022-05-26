@@ -12,10 +12,33 @@ group = ""
 
 exit = False
 
-version = "2022/5/23"
+version = "2022/5/26"
 
-
-
+def export_as_vscode_json():
+    if group == '':
+        file_name = 'null' + '.code-snippets'
+    else:
+        file_name = group + '.code-snippets'
+    cmds = dc.get_cmds_of_group(group)
+    rows = []
+    rows.append('{')
+    for cmd in cmds:
+        rows.append(f'\t"{cmd.get_rows_of_help()[0]}": '+'{')
+        rows.append(f'\t\t"prefix": "@@{cmd.name}",')
+        rows.append('\t\t"body": [')
+        for r in cmd.get_rows_of_body():
+            r = r.replace('"', '\\'+'"')
+            r = r.replace('\t', '    ')
+            rows.append(f'\t\t\t"{r}",')
+        rows.append('\t\t],')
+        rows.append('\t},')
+    rows.append('}')
+    with open(file_name, encoding='utf-8', mode='w') as f:
+        for row in rows:
+            f.write(row)
+            f.write('\n')
+    print('exported.')
+    
 def cmd_split(origin_cmd):
     parts = origin_cmd.split(':')
     op = parts[0]
@@ -91,6 +114,8 @@ def key_press_event(key):
                     cv_print(version)
                 elif op == 'list':
                     cmd_manager(dc, group)
+                elif op == 'export':
+                    export_as_vscode_json()
                 else:
                     op, args = cmd_split(op)
                     if op == 'help':
@@ -144,7 +169,7 @@ def check_exit():
 
 #-----main------
 
-with open("config.txt") as f:
+with open("config.txt", encoding='utf-8') as f:
     db_path = f.read()
 
 dc = dao.dao_code(db_path)
